@@ -222,4 +222,4 @@ venv/
 datasets/
 weights/
 runs/
-__pycache__/
+__pycache__/output/*.mp4
