@@ -675,6 +675,209 @@ video {
   height: 260px !important;
 }
 
+/* ── Footer ──────────────────────────────────────────────── */
+
+.site-footer {
+  position: relative;
+  margin-top: 80px;
+  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(11, 15, 25, 0.0), rgba(11, 15, 25, 0.96) 20%),
+    radial-gradient(ellipse at 30% 100%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(ellipse at 70% 100%, rgba(139, 92, 246, 0.06), transparent 50%);
+}
+
+.footer-inner {
+  width: min(1220px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 56px 0 0;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr;
+  gap: 40px;
+}
+
+.footer-brand-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.footer-brand-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+  font-size: 0.85rem;
+}
+
+.footer-tagline {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.footer-description {
+  color: var(--muted-2);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.footer-col-title {
+  display: block;
+  margin-bottom: 18px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-links li {
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.footer-links a:hover {
+  color: var(--text);
+  transform: translateX(3px);
+}
+
+.footer-links a i {
+  font-size: 1rem;
+  width: 18px;
+  text-align: center;
+}
+
+.footer-dev-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.footer-dev-role {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.footer-dev-edu {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.footer-social {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.footer-social a {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.72);
+  color: var(--muted);
+  font-size: 1.05rem;
+  text-decoration: none;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.footer-social a:hover {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text);
+  transform: translateY(-2px);
+}
+
+.footer-tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.footer-tech-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.72);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.footer-tech-badge:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.footer-divider {
+  height: 1px;
+  margin: 40px 0 0;
+  border: none;
+  background: var(--line);
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 24px;
+  color: var(--muted-2);
+  font-size: 0.78rem;
+}
+
+.footer-bottom-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-bottom-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted-2);
+}
+
 @keyframes gridDrift {
   from {
     background-position: 0 0;
@@ -720,6 +923,10 @@ video {
 
   .analytics-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -771,5 +978,16 @@ video {
   .panel-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
   }
 }
