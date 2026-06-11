@@ -135,33 +135,155 @@
       setFile(input.files[0]);
     });
 
-    form.addEventListener("submit", () => {
-      const filename = input.files[0] ? input.files[0].name : "Selected video";
-      let progress = 0;
-      let frames = 0;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      if (!input.files || !input.files[0]) {
+        return;
+      }
+
+      const filename = input.files[0].name;
+      const formData = new FormData(form);
+      const xhr = new XMLHttpRequest();
+      const runButton = document.getElementById("runButton");
+
+      if (runButton) {
+        runButton.disabled = true;
+        runButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing…';
+      }
 
       processingFile.textContent = filename;
-      processingPill.textContent = "Processing";
-      processingProgress.textContent = "Uploading video";
-      setProgress(8, "Uploading");
+      processingPill.textContent = "Uploading";
+      processingPill.classList.remove("success");
+      processingProgress.textContent = "Uploading video to server";
+      setProgress(0, "Uploading");
 
-      const timer = window.setInterval(() => {
-        progress = progress < 72 ? progress + Math.random() * 8 : Math.min(94, progress + Math.random() * 1.2);
-        frames += Math.floor(24 + Math.random() * 38);
+      /* ── Phase 1: real upload progress ── */
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const pct = (e.loaded / e.total) * 100;
+          setProgress(pct, "Uploading");
+          processingProgress.textContent = "Uploading video to server";
 
-        const state = progress < 35 ? "Uploading" : "Processing";
-        setProgress(progress, state);
-        processingProgress.textContent = progress < 35 ? "Securing upload" : "Running YOLOv8 + ByteTrack";
-        framesProcessed.textContent = frames.toLocaleString();
-        currentFps.textContent = `${(27 + Math.random() * 8).toFixed(1)}`;
-        etaValue.textContent = progress < 80 ? "Under 1 min" : "Finalizing";
-      }, 700);
+          const uploadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
+          const totalMB = (e.total / (1024 * 1024)).toFixed(1);
+          framesProcessed.textContent = `${uploadedMB} / ${totalMB} MB`;
+          currentFps.textContent = "--";
+          etaValue.textContent = pct < 95 ? "Uploading…" : "Almost done";
+        }
+      });
 
-      window.setTimeout(() => {
-        window.clearInterval(timer);
-        setProgress(96, "Processing");
-        processingProgress.textContent = "Rendering tracked output";
-      }, 9000);
+      /* ── Phase 2: processing animation while server works ── */
+      xhr.upload.addEventListener("load", () => {
+        setProgress(100, "Uploaded");
+        processingPill.textContent = "Processing";
+        processingProgress.textContent = "Running YOLOv8 + ByteTrack inference";
+        framesProcessed.textContent = "—";
+        currentFps.textContent = "--";
+        etaValue.textContent = "Estimating…";
+
+        let processingPct = 0;
+        const startTime = Date.now();
+
+        const processingTimer = window.setInterval(() => {
+          /* slowly creep toward 95% but never reach 100 */
+          const elapsed = (Date.now() - startTime) / 1000;
+          processingPct = 95 * (1 - Math.exp(-elapsed / 60));
+
+          setProgress(processingPct, "Processing");
+
+          /* simulate frame counter based on elapsed time */
+          const estimatedFrames = Math.floor(elapsed * 28);
+          framesProcessed.textContent = estimatedFrames.toLocaleString();
+          currentFps.textContent = `${(24 + Math.random() * 9).toFixed(1)}`;
+
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = Math.floor(elapsed % 60);
+          etaValue.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} elapsed`;
+        }, 500);
+
+        /* store timer ID so we can clear it on response */
+        xhr._processingTimer = processingTimer;
+      });
+
+      /* ── Phase 3: server responded ── */
+      xhr.addEventListener("load", () => {
+        if (xhr._processingTimer) {
+          window.clearInterval(xhr._processingTimer);
+        }
+
+        /* server returns a 302 redirect → follow it */
+        if (xhr.status >= 200 && xhr.status < 400) {
+          setProgress(100, "Complete");
+          processingPill.textContent = "Complete";
+          processingPill.classList.add("success");
+          processingProgress.textContent = "Tracking complete — loading results";
+          etaValue.textContent = "Done";
+
+          /* the /upload route returns a redirect; responseURL follows it */
+          const redirectUrl = xhr.responseURL;
+          if (redirectUrl && redirectUrl !== window.location.href) {
+            window.location.href = redirectUrl;
+          } else {
+            /* fallback: reload to pick up any rendered error */
+            window.location.reload();
+          }
+        } else {
+          /* server returned an error page */
+          setProgress(0, "Error");
+          processingPill.textContent = "Error";
+          processingProgress.textContent = "Processing failed — please try again";
+          etaValue.textContent = "--";
+          if (runButton) {
+            runButton.disabled = false;
+            runButton.innerHTML = '<i class="bi bi-cpu"></i> Run Occlusion-Aware Tracking';
+          }
+
+          /* show error from server HTML if available */
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(xhr.responseText, "text/html");
+          const alertEl = doc.querySelector(".alert");
+          if (alertEl) {
+            const existingAlert = form.querySelector(".alert");
+            if (existingAlert) {
+              existingAlert.innerHTML = alertEl.innerHTML;
+            } else {
+              form.insertAdjacentHTML("afterbegin", alertEl.outerHTML);
+            }
+          }
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        if (xhr._processingTimer) {
+          window.clearInterval(xhr._processingTimer);
+        }
+        setProgress(0, "Error");
+        processingPill.textContent = "Error";
+        processingProgress.textContent = "Network error — check your connection";
+        etaValue.textContent = "--";
+        if (runButton) {
+          runButton.disabled = false;
+          runButton.innerHTML = '<i class="bi bi-cpu"></i> Run Occlusion-Aware Tracking';
+        }
+      });
+
+      xhr.addEventListener("abort", () => {
+        if (xhr._processingTimer) {
+          window.clearInterval(xhr._processingTimer);
+        }
+        setProgress(0, "Aborted");
+        processingPill.textContent = "Idle";
+        processingProgress.textContent = "Upload cancelled";
+        etaValue.textContent = "--";
+        if (runButton) {
+          runButton.disabled = false;
+          runButton.innerHTML = '<i class="bi bi-cpu"></i> Run Occlusion-Aware Tracking';
+        }
+      });
+
+      xhr.open("POST", form.action);
+      xhr.send(formData);
     });
   }
 
