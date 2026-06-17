@@ -25,6 +25,7 @@ class TrackingService:
         self.confidence = confidence
         self.device = 0 if torch.cuda.is_available() else "cpu"
         self._lock = threading.Lock()
+        self._model = None  # lazy-loaded to avoid OOM at startup
 
         if not self.model_path.exists():
             fallback = Path("yolov8n.pt")
@@ -36,7 +37,13 @@ class TrackingService:
                 )
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.model = YOLO(str(self.model_path))
+
+    @property
+    def model(self) -> YOLO:
+        """Lazy-load the YOLO model on first use to reduce startup memory."""
+        if self._model is None:
+            self._model = YOLO(str(self.model_path))
+        return self._model
 
     def process_video(self, video_path: str | Path) -> str:
         source = Path(video_path)
@@ -65,6 +72,12 @@ class TrackingService:
                     pass
         except Exception as exc:
             raise TrackingError(f"Inference failed: {exc}") from exc
+        finally:
+            # Clean up the uploaded source video to save disk space
+            try:
+                source.unlink(missing_ok=True)
+            except OSError:
+                pass
 
         output_video = self._find_output_video(run_dir, source, run_name)
         if output_video is None:
