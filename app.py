@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 
@@ -13,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "uploads"
 OUTPUT_DIR = BASE_DIR / "static" / "outputs"
 ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
-MAX_CONTENT_LENGTH = 500 * 1024 * 1024
+MAX_CONTENT_LENGTH = 100 * 1024 * 1024
 
 
 app = Flask(__name__)
@@ -96,8 +97,9 @@ def download():
 
 @app.errorhandler(413)
 def request_entity_too_large(_error):
-    return render_template("index.html", error="File is too large. Maximum upload size is 500 MB."), 413
+    return render_template("index.html", error="File is too large. Maximum upload size is 100 MB."), 413
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    port = int(os.environ.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=port, debug=False)
