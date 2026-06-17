@@ -16,7 +16,7 @@ class TrackingError(RuntimeError):
 class TrackingService:
     def __init__(
         self,
-        model_path: str = "yolov8m.pt",
+        model_path: str = "yolov8n.pt",
         output_dir: str = "static/outputs",
         confidence: float = 0.3,
     ) -> None:
