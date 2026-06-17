@@ -3,8 +3,13 @@ services:
     name: object-detection-tracker
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      apt-get update && apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: MALLOC_ARENA_MAX
+        value: 2
