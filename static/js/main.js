@@ -278,18 +278,19 @@
           /* server returned an error page */
           setProgress(0, "Error");
           processingPill.textContent = "Error";
-          processingProgress.textContent = "Processing failed — please try again";
           etaValue.textContent = "--";
           if (runButton) {
             runButton.disabled = false;
             runButton.innerHTML = '<i class="bi bi-cpu"></i> Run Occlusion-Aware Tracking';
           }
 
-          /* show error from server HTML if available */
+          /* extract actual error from server HTML and show it prominently */
+          let errorMsg = "Processing failed — please try again";
           const parser = new DOMParser();
           const doc = parser.parseFromString(xhr.responseText, "text/html");
           const alertEl = doc.querySelector(".alert");
           if (alertEl) {
+            errorMsg = alertEl.textContent.trim();
             const existingAlert = form.querySelector(".alert");
             if (existingAlert) {
               existingAlert.innerHTML = alertEl.innerHTML;
@@ -297,6 +298,8 @@
               form.insertAdjacentHTML("afterbegin", alertEl.outerHTML);
             }
           }
+          /* show error in processing card too so user sees it */
+          processingProgress.textContent = errorMsg;
         }
       });
 
