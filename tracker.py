@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gc
+import logging
 import shutil
 import threading
 import uuid
@@ -7,6 +9,9 @@ from pathlib import Path
 
 import torch
 from ultralytics import YOLO
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class TrackingError(RuntimeError):
@@ -23,7 +28,7 @@ class TrackingService:
         self.model_path = Path(model_path)
         self.output_dir = Path(output_dir).resolve()
         self.confidence = confidence
-        self.device = 0 if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"
         self._lock = threading.Lock()
         self._model = None  # lazy-loaded to avoid OOM at startup
 
@@ -37,12 +42,15 @@ class TrackingService:
                 )
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("TrackingService initialized (model=%s, device=%s)", self.model_path, self.device)
 
     @property
     def model(self) -> YOLO:
         """Lazy-load the YOLO model on first use to reduce startup memory."""
         if self._model is None:
+            logger.info("Loading YOLO model: %s", self.model_path)
             self._model = YOLO(str(self.model_path))
+            logger.info("Model loaded successfully")
         return self._model
 
     def process_video(self, video_path: str | Path) -> str:
@@ -50,11 +58,15 @@ class TrackingService:
         if not source.exists():
             raise FileNotFoundError(f"Input video not found: {source}")
 
+        file_size_mb = source.stat().st_size / (1024 * 1024)
+        logger.info("Processing video: %s (%.1f MB)", source.name, file_size_mb)
+
         run_name = f"track_{source.stem}_{uuid.uuid4().hex[:10]}"
         run_dir = self.output_dir / run_name
 
         try:
             with self._lock:
+                logger.info("Starting YOLO tracking (imgsz=480, conf=%.2f)", self.confidence)
                 results = self.model.track(
                     source=str(source),
                     tracker="bytetrack.yaml",
@@ -67,10 +79,19 @@ class TrackingService:
                     name=run_name,
                     exist_ok=True,
                     stream=True,
+                    imgsz=480,
+                    vid_stride=2,
                 )
+                frame_count = 0
                 for _ in results:
-                    pass
+                    frame_count += 1
+                    if frame_count % 50 == 0:
+                        logger.info("Processed %d frames...", frame_count)
+                        gc.collect()
+
+                logger.info("Tracking complete: %d frames processed", frame_count)
         except Exception as exc:
+            logger.error("Inference failed: %s", exc, exc_info=True)
             raise TrackingError(f"Inference failed: {exc}") from exc
         finally:
             # Clean up the uploaded source video to save disk space
@@ -78,9 +99,11 @@ class TrackingService:
                 source.unlink(missing_ok=True)
             except OSError:
                 pass
+            gc.collect()
 
         output_video = self._find_output_video(run_dir, source, run_name)
         if output_video is None:
+            logger.error("No output video found in %s", run_dir)
             raise TrackingError("Tracking finished but no output video was produced.")
 
         final_path = self.output_dir / f"{run_name}.mp4"
@@ -90,6 +113,7 @@ class TrackingService:
         if run_dir.exists():
             shutil.rmtree(run_dir, ignore_errors=True)
 
+        logger.info("Output saved: %s", final_path.name)
         return str(final_path)
 
     @staticmethod
