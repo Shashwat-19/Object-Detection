@@ -88,9 +88,46 @@
     const framesProcessed = document.getElementById("framesProcessed");
     const currentFps = document.getElementById("currentFps");
     const etaValue = document.getElementById("etaValue");
+    const runButton = document.getElementById("runButton");
+
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; /* 100 MB */
 
     if (!form || !input || !dropZone) {
       return;
+    }
+
+    function showAlert(message) {
+      let alertEl = form.querySelector(".alert");
+      if (!alertEl) {
+        alertEl = document.createElement("div");
+        alertEl.className = "alert alert-danger";
+        alertEl.setAttribute("role", "alert");
+        form.insertAdjacentElement("afterbegin", alertEl);
+      }
+      alertEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i> ' + message;
+    }
+
+    function clearAlert() {
+      const alertEl = form.querySelector(".alert");
+      if (alertEl) {
+        alertEl.remove();
+      }
+    }
+
+    function validateFileSize(file) {
+      if (!file) return true;
+      if (file.size > MAX_FILE_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        showAlert("File is too large (" + sizeMB + " MB). Maximum upload size is 100 MB.");
+        input.value = "";
+        label.textContent = "Drop surveillance, traffic, crowd, or sports footage";
+        processingFile.textContent = "No video selected";
+        if (runButton) runButton.disabled = true;
+        return false;
+      }
+      clearAlert();
+      if (runButton) runButton.disabled = false;
+      return true;
     }
 
     function setProgress(value, state) {
@@ -114,7 +151,11 @@
       processingPill.textContent = "Ready";
     }
 
-    input.addEventListener("change", () => setFile(input.files[0]));
+    input.addEventListener("change", () => {
+      if (validateFileSize(input.files[0])) {
+        setFile(input.files[0]);
+      }
+    });
 
     ["dragenter", "dragover"].forEach((eventName) => {
       dropZone.addEventListener(eventName, (event) => {
@@ -132,7 +173,9 @@
 
     dropZone.addEventListener("drop", (event) => {
       input.files = event.dataTransfer.files;
-      setFile(input.files[0]);
+      if (validateFileSize(input.files[0])) {
+        setFile(input.files[0]);
+      }
     });
 
     form.addEventListener("submit", (event) => {
@@ -142,10 +185,13 @@
         return;
       }
 
+      if (!validateFileSize(input.files[0])) {
+        return;
+      }
+
       const filename = input.files[0].name;
       const formData = new FormData(form);
       const xhr = new XMLHttpRequest();
-      const runButton = document.getElementById("runButton");
 
       if (runButton) {
         runButton.disabled = true;
