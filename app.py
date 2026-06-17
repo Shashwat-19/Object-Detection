@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -9,6 +10,8 @@ from werkzeug.utils import secure_filename
 
 from tracker import TrackingError, process_video
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "uploads"
@@ -33,6 +36,12 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/health")
+def health():
+    """Health check endpoint for Render."""
+    return {"status": "ok"}, 200
+
+
 @app.post("/upload")
 def upload():
     file = request.files.get("video")
@@ -53,11 +62,18 @@ def upload():
     upload_path = UPLOAD_DIR / upload_name
 
     try:
+        logger.info("Saving uploaded file: %s", upload_name)
         file.save(upload_path)
+        file_size_mb = upload_path.stat().st_size / (1024 * 1024)
+        logger.info("File saved (%.1f MB). Starting processing...", file_size_mb)
+
         output_path = Path(process_video(upload_path))
+        logger.info("Processing complete: %s", output_path.name)
     except TrackingError as exc:
+        logger.error("TrackingError: %s", exc)
         return render_template("index.html", error=str(exc)), 500
     except Exception as exc:
+        logger.error("Unexpected error: %s", exc, exc_info=True)
         return render_template("index.html", error=f"Processing failed: {exc}"), 500
 
     return redirect(url_for("result", file=output_path.name))
