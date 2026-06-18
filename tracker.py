@@ -73,7 +73,7 @@ class TrackingService:
 
         try:
             with self._lock:
-                logger.info("Starting YOLO tracking (imgsz=480, conf=%.2f)", self.confidence)
+                logger.info("Starting YOLO tracking (imgsz=320, vid_stride=3, conf=%.2f)", self.confidence)
                 results = self.model.track(
                     source=str(source),
                     tracker="bytetrack.yaml",
@@ -86,7 +86,8 @@ class TrackingService:
                     name=run_name,
                     exist_ok=True,
                     stream=True,
-                    imgsz=480,
+                    imgsz=320,
+                    vid_stride=3,
                 )
                 frame_count = 0
                 for _ in results:
