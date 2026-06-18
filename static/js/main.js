@@ -223,7 +223,7 @@
       xhr.upload.addEventListener("load", () => {
         setProgress(100, "Uploaded");
         processingPill.textContent = "Processing";
-        processingProgress.textContent = "Running YOLOv8 + ByteTrack inference";
+        processingProgress.textContent = "Running YOLOv8 + ByteTrack inference — this may take a few minutes";
         framesProcessed.textContent = "—";
         currentFps.textContent = "--";
         etaValue.textContent = "Estimating…";
@@ -232,21 +232,31 @@
         const startTime = Date.now();
 
         const processingTimer = window.setInterval(() => {
-          /* slowly creep toward 95% but never reach 100 */
+          /* slowly creep toward 95% — use /180 to slow down the curve */
           const elapsed = (Date.now() - startTime) / 1000;
-          processingPct = 95 * (1 - Math.exp(-elapsed / 60));
+          processingPct = 95 * (1 - Math.exp(-elapsed / 180));
 
           setProgress(processingPct, "Processing");
 
-          /* simulate frame counter based on elapsed time */
-          const estimatedFrames = Math.floor(elapsed * 28);
-          framesProcessed.textContent = estimatedFrames.toLocaleString();
-          currentFps.textContent = `${(24 + Math.random() * 9).toFixed(1)}`;
-
+          /* show elapsed time */
           const minutes = Math.floor(elapsed / 60);
           const seconds = Math.floor(elapsed % 60);
           etaValue.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} elapsed`;
-        }, 500);
+
+          /* show helpful status messages based on elapsed time */
+          if (elapsed < 30) {
+            processingProgress.textContent = "Running YOLOv8 + ByteTrack inference…";
+          } else if (elapsed < 120) {
+            processingProgress.textContent = "Still processing — free tier CPU is slow, please wait…";
+          } else if (elapsed < 300) {
+            processingProgress.textContent = "Processing large video — hang tight, almost there…";
+          } else {
+            processingProgress.textContent = "Still working… this video is taking a while on free tier";
+          }
+
+          framesProcessed.textContent = "—";
+          currentFps.textContent = "--";
+        }, 1000);
 
         /* store timer ID so we can clear it on response */
         xhr._processingTimer = processingTimer;
