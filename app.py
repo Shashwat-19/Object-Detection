@@ -122,16 +122,10 @@ def debug():
 def upload():
     file = request.files.get("video")
     if file is None or file.filename == "":
-        return render_template("index.html", error="Select a video before running tracking."), 400
+        return _error_response("Select a video before running tracking.", 400)
 
     if not allowed_file(file.filename):
-        return (
-            render_template(
-                "index.html",
-                error="Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.",
-            ),
-            400,
-        )
+        return _error_response("Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.", 400)
 
     original_name = secure_filename(file.filename)
     upload_name = f"{Path(original_name).stem}_{uuid.uuid4().hex[:10]}{Path(original_name).suffix.lower()}"
@@ -147,12 +141,21 @@ def upload():
         logger.info("Processing complete: %s", output_path.name)
     except TrackingError as exc:
         logger.error("TrackingError: %s", exc)
-        return render_template("index.html", error=str(exc)), 500
+        return _error_response(str(exc), 500)
     except Exception as exc:
-        logger.error("Unexpected error: %s", exc, exc_info=True)
-        return render_template("index.html", error=f"Processing failed: {exc}"), 500
+        import traceback
+        tb = traceback.format_exc()
+        logger.error("Unexpected error: %s\n%s", exc, tb)
+        return _error_response(f"Processing failed: {exc}", 500)
 
     return redirect(url_for("result", file=output_path.name))
+
+
+def _error_response(message: str, status_code: int):
+    """Return error as JSON for XHR requests, or HTML for regular requests."""
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return {"error": message}, status_code
+    return render_template("index.html", error=message), status_code
 
 
 @app.get("/result/")
@@ -189,9 +192,22 @@ def download():
 
 @app.errorhandler(413)
 def request_entity_too_large(_error):
-    return render_template("index.html", error="File is too large. Maximum upload size is 100 MB."), 413
+    return _error_response("File is too large. Maximum upload size is 100 MB.", 413)
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    logger.error("500 error: %s", error)
+    return _error_response(f"Internal server error: {error}", 500)
+
+
+@app.errorhandler(502)
+def bad_gateway(error):
+    logger.error("502 error: %s", error)
+    return _error_response("Server overloaded — try a shorter video or try again later.", 502)
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port, debug=False)
+

@@ -223,3 +223,5 @@ datasets/
 weights/
 runs/
 __pycache__/output/*.mp4
+static/outputs/*.mp4
+static/uploads/*.mp4
