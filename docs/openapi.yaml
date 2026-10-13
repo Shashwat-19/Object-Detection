@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: TrackVision AI API
+  version: "1.0.0"
+  description: |
+    HTTP routes of the TrackVision AI Flask application (`app.py`), which tracks objects in
+    uploaded videos with YOLOv8 and ByteTrack. Routes that return HTML describe the page
+    that the browser receives. No route requires authentication.
+
+    Requests that send `X-Requested-With: XMLHttpRequest` or `Accept: application/json` get
+    JSON errors of the form `{"error": "..."}`. Other requests get HTML.
+
+    Most examples come from real responses captured by `docs/evidence/run-curl-checks.sh`.
+    The `500` example and the "unreadable" 400 example show the message format; they were not
+    captured from a live request. Absolute paths in examples are replaced with `/path/to/Object-Detection`.
+  contact:
+    name: Shashwat
+    url: https://github.com/Shashwat-19
+  license:
+    name: MIT
+    url: https://github.com/Shashwat-19/Object-Detection/blob/main/LICENSE
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local server started with the quickstart command.
+
+security: []
+
+tags:
+  - name: pages
+    description: HTML pages for people.
+  - name: service
+    description: Health and diagnostic routes.
+  - name: processing
+    description: Upload, result, and download routes.
+
+paths:
+  /:
+    get:
+      tags: [pages]
+      summary: Show the upload page
+      description: Returns the HTML upload page.
+      operationId: getIndex
+      responses:
+        "200":
+          description: The upload page.
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!doctype html>
+                <html lang="en">
+                  <head>
+                    <meta charset="utf-8">
+                    <title>TrackVision AI | Occlusion-Aware Multi-Object Tracking</title>
+
+  /health:
+    get:
+      tags: [service]
+      summary: Health check
+      description: |
+        Returns `{"status":"ok"}` when the server responds. The server runs four threads, and
+        this route still responds while a video is being processed.
+      operationId: getHealth
+      responses:
+        "200":
+          description: The server is running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+
+  /debug:
+    get:
+      tags: [service]
+      summary: Environment details for troubleshooting
+      description: |
+        Returns paths, memory and disk use, and library versions. The route is off unless the
+        server was started with `ENABLE_DEBUG_ENDPOINT=1`. When it is off, the response is 404.
+        Do not enable it on a public server.
+      operationId: getDebug
+      responses:
+        "200":
+          description: Diagnostic information, when `ENABLE_DEBUG_ENDPOINT` is set. Individual fields can contain error text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debug"
+              example:
+                base_dir: /path/to/Object-Detection
+                cuda_available: false
+                cwd: /path/to/Object-Detection
+                disk:
+                  free_gb: 26.1
+                  total_gb: 228.3
+                ffmpeg_binary: "ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers"
+                memory:
+                  available_mb: 1764
+                  total_mb: 8192
+                  used_percent: 78.5
+                model_yolov8m.pt:
+                  exists: true
+                  size_mb: 49.7
+                model_yolov8n.pt:
+                  exists: true
+                  size_mb: 6.2
+                opencv_ffmpeg: false
+                opencv_version: "5.0.0"
+                output_dir_exists: true
+                python_version: "3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 21.0.0 (clang-2100.0.123.102)]"
+                torch_version: "2.11.0"
+                ultralytics_version: "8.4.49"
+                upload_dir_exists: true
+        "404":
+          description: The route is disabled (the default). The body is Flask's HTML 404 page.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /upload:
+    post:
+      tags: [processing]
+      summary: Upload a video and track objects in it
+      description: |
+        Checks the upload, saves it, runs YOLOv8 detection and ByteTrack tracking, and writes an
+        annotated MP4 to `static/outputs/`. On success, the server returns `302` with a
+        `Location` header that points to `/result/?file=<name>`. The request takes as long as
+        processing takes.
+
+        The server checks the file extension, the declared content type, and the first bytes of
+        the file. A file that fails a check is rejected before it is saved. The uploaded file is
+        deleted when processing ends, including when it fails.
+      operationId: uploadVideo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [video]
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: >-
+                    Video file. The name must end in .mp4, .avi, .mov, .mkv, or .webm
+                    (case-insensitive), and the first bytes must match that container. Maximum 100 MiB.
+      responses:
+        "302":
+          description: Processing succeeded. The `Location` header names the result.
+          headers:
+            Location:
+              description: Relative URL of the result page, for example `/result/?file=track_sample_6311d0daa7_b7b6dc424a.mp4`.
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!doctype html>
+                <html lang=en>
+                <title>Redirecting...</title>
+                <h1>Redirecting...</h1>
+                <p>You should be redirected automatically to the target URL: <a href="/result/?file=track_sample_6311d0daa7_b7b6dc424a.mp4">/result/?file=track_sample_6311d0daa7_b7b6dc424a.mp4</a>. If not, click the link.
+        "400":
+          description: >-
+            No `video` field, an empty file name, an unsupported extension or content type, a file
+            whose contents do not match its extension, or a file the model cannot read. JSON when the
+            request asks for JSON, otherwise the upload page with an alert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingFile:
+                  summary: No video field
+                  value:
+                    error: Select a video before running tracking.
+                unsupportedFormat:
+                  summary: Unsupported extension
+                  value:
+                    error: Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.
+                contentMismatch:
+                  summary: File contents do not match the extension
+                  value:
+                    error: The file is not a supported video. Its contents do not match the file extension.
+                unreadable:
+                  summary: The model cannot read the file
+                  value:
+                    error: The video could not be read. Upload a different file.
+        "413":
+          description: The request body is larger than 100 MiB. JSON when the request asks for JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: File is too large. Maximum upload size is 100 MB.
+        "405":
+          description: "Returned for `GET /upload`. The response includes `Allow: POST, OPTIONS`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: >-
+            Processing failed. The message contains only a reference ID. The server log has the
+            details under the same ID. The example shows the format; the ID is different on each failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Processing failed. Reference: 3f9a1c2e"
+
+  /result/:
+    get:
+      tags: [pages]
+      summary: Show the result page
+      description: |
+        Returns the HTML result page for a processed video. The page shows the video, a download
+        link, and four values measured while the video was tracked: unique track IDs, detections,
+        frames processed, and processing time. When the measurements are missing, the page shows
+        a dash.
+      operationId: getResult
+      parameters:
+        - name: file
+          in: query
+          required: true
+          description: Processed video name from the `Location` header of `POST /upload`.
+          schema:
+            type: string
+            example: track_sample_6311d0daa7_b7b6dc424a.mp4
+      responses:
+        "200":
+          description: The result page.
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!doctype html>
+                <html lang="en">
+                  <head>
+                    <title>Tracking Result | TrackVision AI</title>
+        "404":
+          description: >-
+            The `file` parameter is missing, the file does not exist, or the name points outside
+            `static/outputs/` after sanitizing. JSON when the request asks for JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+            text/html:
+              schema:
+                type: string
+        "308":
+          description: The request has no trailing slash. Flask redirects to `/result/`.
+          headers:
+            Location:
+              schema:
+                type: string
+
+  /download/:
+    get:
+      tags: [processing]
+      summary: Download a processed video
+      description: Returns the processed MP4 as an attachment.
+      operationId: downloadVideo
+      parameters:
+        - name: filename
+          in: query
+          required: false
+          description: Processed video name. Use this or `file`.
+          schema:
+            type: string
+        - name: file
+          in: query
+          required: false
+          description: Alias for `filename`. Used when `filename` is absent.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The MP4 file.
+          headers:
+            Content-Disposition:
+              description: "`attachment; filename=<name>`"
+              schema:
+                type: string
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: >-
+            Neither parameter is given, the file does not exist, or the name points outside
+            `static/outputs/` after sanitizing. JSON when the request asks for JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+            text/html:
+              schema:
+                type: string
+        "308":
+          description: The request has no trailing slash. Flask redirects to `/download/`.
+
+  /static/{path}:
+    get:
+      tags: [processing]
+      summary: Serve a file from `static/`
+      description: |
+        Flask's built-in static route. Processed videos are at `outputs/<name>`, and the result
+        page plays them from this route. Files are served inline. Anyone with the link can view
+        a processed video, and the app never deletes them.
+      operationId: getStatic
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: File path inside `static/`.
+          schema:
+            type: string
+            example: outputs/track_sample_6311d0daa7_b7b6dc424a.mp4
+      responses:
+        "200":
+          description: The full file.
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: The requested byte range.
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: The file does not exist.
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Message for the user. Contains no server paths.
+    Debug:
+      type: object
+      description: Diagnostic values. Keys can be absent, and some are replaced by `*_error` keys when a check fails.
+      properties:
+        base_dir:
+          type: string
+        cwd:
+          type: string
+        upload_dir_exists:
+          type: boolean
+        output_dir_exists:
+          type: boolean
+        model_yolov8n.pt:
+          $ref: "#/components/schemas/ModelFile"
+        model_yolov8m.pt:
+          $ref: "#/components/schemas/ModelFile"
+        memory:
+          type: object
+          properties:
+            total_mb:
+              type: integer
+            available_mb:
+              type: integer
+            used_percent:
+              type: number
+        memory_error:
+          type: string
+        disk:
+          type: object
+          properties:
+            total_gb:
+              type: number
+            free_gb:
+              type: number
+        disk_error:
+          type: string
+        opencv_version:
+          type: string
+        opencv_ffmpeg:
+          type: boolean
+        ffmpeg_binary:
+          type: string
+        python_version:
+          type: string
+        torch_version:
+          type: string
+        torch_error:
+          type: string
+        cuda_available:
+          type: boolean
+        ultralytics_version:
+          type: string
+        ultralytics_error:
+          type: string
+    ModelFile:
+      type: object
+      properties:
+        exists:
+          type: boolean
+        size_mb:
+          type: number
+          nullable: true
