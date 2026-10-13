@@ -271,5 +271,7 @@ def handle_unexpected_error(error: Exception):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Local development only. The Werkzeug debugger allows code execution, so it stays off
+    # unless FLASK_DEBUG is set. Production uses gunicorn, which ignores this setting.
+    app.run(host="0.0.0.0", port=port, debug=env_flag("FLASK_DEBUG"))
 
