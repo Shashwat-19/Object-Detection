@@ -32,7 +32,7 @@ class TrackingService:
         self.confidence = confidence
         self.device = "cpu"
         self._lock = threading.Lock()
-        self._model = None  # lazy-loaded to avoid OOM at startup
+        self._model = None
 
         # Resolve model path relative to project root. If the weights are missing,
         # Ultralytics downloads the named asset to this path on first load.
@@ -43,6 +43,13 @@ class TrackingService:
                 self.model_path = fallback
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load once per process, at startup. If the weights are missing,
+        # Ultralytics downloads them to model_path first.
+        logger.info("Loading YOLO model: %s", self.model_path)
+        self._model = YOLO(str(self.model_path))
+        logger.info("Model loaded successfully")
+
         logger.info(
             "TrackingService initialized (model=%s, device=%s, base=%s)",
             self.model_path, self.device, BASE_DIR,
@@ -50,11 +57,7 @@ class TrackingService:
 
     @property
     def model(self) -> YOLO:
-        """Lazy-load the YOLO model on first use to reduce startup memory."""
-        if self._model is None:
-            logger.info("Loading YOLO model: %s", self.model_path)
-            self._model = YOLO(str(self.model_path))
-            logger.info("Model loaded successfully")
+        """The YOLO model loaded in __init__."""
         return self._model
 
     def process_video(self, video_path: str | Path) -> str:
