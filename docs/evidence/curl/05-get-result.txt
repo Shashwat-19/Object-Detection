@@ -1,0 +1,179 @@
+$ curl -s -D h.txt -o b.txt -w '%{http_code} %{time_total}s' 'http://127.0.0.1:8000/result/?file=track_sample_6311d0daa7_b7b6dc424a.mp4'
+
+# status: 200 0.004431s
+
+# response headers
+HTTP/1.1 200 OK
+Server: gunicorn
+Date: Tue, 13 Oct 2026 02:30:45 GMT
+Connection: keep-alive
+Content-Type: text/html; charset=utf-8
+Content-Length: 7192
+
+
+# response body
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tracking Result | TrackVision AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body data-page="result">
+    <div class="ambient-grid"></div>
+    <main class="page-shell">
+      <nav class="nav-shell" aria-label="Primary">
+        <a class="brand" href="/" aria-label="TrackVision AI home">
+          <span class="brand-symbol"><i class="bi bi-bounding-box-circles"></i></span>
+          <span>TrackVision AI</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-ghost btn-sm" href="/">Process Another Video</a>
+        </div>
+      </nav>
+
+      <section class="result-hero">
+        <div>
+          <span class="eyebrow">Tracking Complete</span>
+          <h1>Tracked output and scene analytics are ready.</h1>
+          <p>Persistent object IDs were rendered into the processed video using the existing YOLOv8 + ByteTrack backend.</p>
+        </div>
+        <div class="result-actions">
+          <a class="btn btn-primary" href="/download/?filename=track_sample_6311d0daa7_b7b6dc424a.mp4">
+            <i class="bi bi-download"></i>
+            Download Processed Video
+          </a>
+          <button class="btn btn-ghost" type="button" id="downloadAnalytics">
+            <i class="bi bi-filetype-json"></i>
+            Download Analytics
+          </button>
+          <a class="btn btn-ghost" href="/">
+            <i class="bi bi-arrow-repeat"></i>
+            Process Another Video
+          </a>
+        </div>
+      </section>
+
+      <section class="result-layout">
+        <div class="video-panel">
+          <div class="panel-toolbar">
+            <div>
+              <span>Output file</span>
+              <strong>track_sample_6311d0daa7_b7b6dc424a.mp4</strong>
+            </div>
+            <span class="processing-pill success">Completed</span>
+          </div>
+          <video controls playsinline preload="metadata" src="/static/outputs/track_sample_6311d0daa7_b7b6dc424a.mp4"></video>
+        </div>
+
+        <aside class="summary-panel">
+          <div class="summary-card">
+            <span>Unique Track IDs</span>
+            <strong>15</strong>
+            <small>Distinct objects in this video</small>
+          </div>
+          <div class="summary-card">
+            <span>Detections</span>
+            <strong>133</strong>
+            <small>Boxes across the sampled frames</small>
+          </div>
+          <div class="summary-card">
+            <span>Frames Processed</span>
+            <strong>40</strong>
+            <small>Every third source frame</small>
+          </div>
+          <div class="summary-card">
+            <span>Processing Time</span>
+            <strong>0.9 s</strong>
+            <small>Tracking time on the server</small>
+          </div>
+        </aside>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-grid">
+
+          <!-- Brand -->
+          <div>
+            <div class="footer-brand-name">
+              <span class="footer-brand-icon"><i class="bi bi-bounding-box-circles"></i></span>
+              TrackVision AI
+            </div>
+            <p class="footer-tagline">Occlusion-Aware Multi-Object Tracking using YOLOv8 and ByteTrack.</p>
+            <p class="footer-description">Real-time computer vision system for object detection, tracking, occlusion handling, and video analytics.</p>
+            <div class="footer-tech">
+              <span class="footer-tech-badge">Python</span>
+              <span class="footer-tech-badge">Flask</span>
+              <span class="footer-tech-badge">YOLOv8</span>
+              <span class="footer-tech-badge">ByteTrack</span>
+              <span class="footer-tech-badge">OpenCV</span>
+              <span class="footer-tech-badge">PyTorch</span>
+              <span class="footer-tech-badge">Bootstrap</span>
+            </div>
+          </div>
+
+          <!-- Developed By -->
+          <div>
+            <span class="footer-col-title">Developed By</span>
+            <div class="footer-dev-name">Shashwat</div>
+            <div class="footer-dev-role">Machine Learning Engineer | Full Stack Developer</div>
+            <div class="footer-dev-edu">BCA (Hons), Christ University</div>
+            <div class="footer-social">
+              <a href="https://github.com/Shashwat-19" target="_blank" rel="noopener" aria-label="GitHub">
+                <i class="bi bi-github"></i>
+              </a>
+              <a href="https://www.linkedin.com/in/shashwatk1956/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <i class="bi bi-linkedin"></i>
+              </a>
+              <a href="mailto:shashwat1956@gmail.com" aria-label="Email">
+                <i class="bi bi-envelope-fill"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- Contact -->
+          <div>
+            <span class="footer-col-title">Contact</span>
+            <ul class="footer-links">
+              <li><a href="https://github.com/Shashwat-19" target="_blank" rel="noopener"><i class="bi bi-github"></i> GitHub</a></li>
+              <li><a href="https://www.linkedin.com/in/shashwatk1956/" target="_blank" rel="noopener"><i class="bi bi-linkedin"></i> LinkedIn</a></li>
+              <li><a href="mailto:shashwat1956@gmail.com"><i class="bi bi-envelope-fill"></i> shashwat1956@gmail.com</a></li>
+            </ul>
+          </div>
+
+          <!-- Project -->
+          <div>
+            <span class="footer-col-title">Project</span>
+            <ul class="footer-links">
+              <li><a href="https://github.com/Shashwat-19/Object-Detection" target="_blank" rel="noopener"><i class="bi bi-code-slash"></i> GitHub Repository</a></li>
+              <li><a href="https://github.com/Shashwat-19/Object-Detection#readme" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text"></i> Report</a></li>
+              <li><a href="https://github.com/Shashwat-19/Object-Detection#readme" target="_blank" rel="noopener"><i class="bi bi-journal-text"></i> Research Notes</a></li>
+            </ul>
+          </div>
+
+        </div>
+
+        <hr class="footer-divider">
+
+        <div class="footer-bottom">
+          <div class="footer-bottom-left">
+            <span>&copy; 2026 Shashwat. All Rights Reserved.</span>
+          </div>
+          <span>Built with Flask, YOLOv8, ByteTrack, and OpenCV.</span>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      window.trackVisionAnalytics = {"filename": "track_sample_6311d0daa7_b7b6dc424a.mp4", "stats": {"frames_processed": 40, "processing_seconds": 0.95, "total_detections": 133, "unique_track_ids": 15}};
+    </script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

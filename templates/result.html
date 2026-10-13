@@ -17,7 +17,6 @@
           <span>TrackVision AI</span>
         </a>
         <div class="nav-actions">
-          <a href="#analytics">Analytics</a>
           <a class="btn btn-ghost btn-sm" href="{{ url_for('index') }}">Process Another Video</a>
         </div>
       </nav>
@@ -58,65 +57,28 @@
 
         <aside class="summary-panel">
           <div class="summary-card">
-            <span>Total Objects Tracked</span>
-            <strong data-count-up="128">128</strong>
-            <small>Unique IDs recovered</small>
+            <span>Unique Track IDs</span>
+            <strong>{{ stats.unique_track_ids if stats else "—" }}</strong>
+            <small>Distinct objects in this video</small>
           </div>
           <div class="summary-card">
-            <span>Average FPS</span>
-            <strong data-count-up="31">31</strong>
-            <small>Processing throughput</small>
+            <span>Detections</span>
+            <strong>{{ stats.total_detections if stats else "—" }}</strong>
+            <small>Boxes across the sampled frames</small>
           </div>
           <div class="summary-card">
-            <span>Track Count</span>
-            <strong data-count-up="214">214</strong>
-            <small>Total track segments</small>
+            <span>Frames Processed</span>
+            <strong>{{ stats.frames_processed if stats else "—" }}</strong>
+            <small>Every third source frame</small>
           </div>
           <div class="summary-card">
             <span>Processing Time</span>
-            <strong>02:18</strong>
-            <small>End-to-end runtime</small>
+            <strong>{{ "%.1f s"|format(stats.processing_seconds) if stats else "—" }}</strong>
+            <small>Tracking time on the server</small>
           </div>
         </aside>
       </section>
 
-      <section class="analytics-dashboard" id="analytics">
-        <div class="section-heading">
-          <span class="eyebrow">Advanced Analytics</span>
-          <h2>Scene intelligence dashboard</h2>
-        </div>
-
-        <div class="chart-grid">
-          <article class="chart-card">
-            <div class="chart-title">
-              <span>Object Count</span>
-              <strong>Per scene interval</strong>
-            </div>
-            <canvas id="objectCountChart"></canvas>
-          </article>
-          <article class="chart-card">
-            <div class="chart-title">
-              <span>Track Stability</span>
-              <strong>ID continuity score</strong>
-            </div>
-            <canvas id="trackStabilityChart"></canvas>
-          </article>
-          <article class="chart-card">
-            <div class="chart-title">
-              <span>Motion Statistics</span>
-              <strong>Speed distribution</strong>
-            </div>
-            <canvas id="motionChart"></canvas>
-          </article>
-          <article class="chart-card">
-            <div class="chart-title">
-              <span>Crowd Density</span>
-              <strong>Spatial occupancy</strong>
-            </div>
-            <canvas id="densityChart"></canvas>
-          </article>
-        </div>
-      </section>
     </main>
 
     <footer class="site-footer">
@@ -195,15 +157,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script>
-      window.trackVisionAnalytics = {
-        filename: "{{ filename }}",
-        totalObjectsTracked: 128,
-        averageFps: 31,
-        trackCount: 214,
-        processingTime: "02:18"
-      };
+      window.trackVisionAnalytics = {{ {"filename": filename, "stats": stats}|tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   </body>

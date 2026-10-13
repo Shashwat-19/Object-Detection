@@ -1,0 +1,16 @@
+$ curl -s -D h.txt -o b.txt -w '%{http_code} %{time_total}s' -H 'X-Requested-With: XMLHttpRequest' -F video=@image.jpg http://127.0.0.1:8000/upload
+
+# status: 400 0.002006s
+
+# response headers
+HTTP/1.1 400 BAD REQUEST
+Server: gunicorn
+Date: Tue, 13 Oct 2026 02:30:45 GMT
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 68
+
+
+# response body
+{"error":"Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM."}
+

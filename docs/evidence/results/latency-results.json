@@ -1,0 +1,85 @@
+{
+  "hardware": {
+    "cpu": "Apple M3",
+    "logical_cores": 8,
+    "os": "macOS-27.0.1-arm64-arm-64bit",
+    "device_used": "cpu"
+  },
+  "software": {
+    "python": "3.11.15",
+    "torch": "2.11.0",
+    "ultralytics": "8.4.49"
+  },
+  "settings": {
+    "weights": "yolov8n.pt",
+    "imgsz": 320,
+    "conf": 0.3,
+    "iou": "Ultralytics default (0.7), not passed by the app"
+  },
+  "detection": {
+    "image": "docs/evidence/sample-frame.jpg",
+    "image_shape": [
+      2160,
+      3840,
+      3
+    ],
+    "model_load_ms": 35.15,
+    "cold_call_ms": 31.23,
+    "cold_call_detections": 2,
+    "warm_wall_clock": {
+      "n": 50,
+      "mean_ms": 7.46,
+      "p50_ms": 7.35,
+      "p95_ms": 8.17,
+      "min_ms": 6.99,
+      "max_ms": 8.65
+    },
+    "warm_stage_preprocess": {
+      "n": 50,
+      "mean_ms": 0.41,
+      "p50_ms": 0.4,
+      "p95_ms": 0.45,
+      "min_ms": 0.36,
+      "max_ms": 0.74
+    },
+    "warm_stage_inference": {
+      "n": 50,
+      "mean_ms": 6.77,
+      "p50_ms": 6.7,
+      "p95_ms": 7.31,
+      "min_ms": 6.25,
+      "max_ms": 7.89
+    },
+    "warm_stage_postprocess": {
+      "n": 50,
+      "mean_ms": 0.2,
+      "p50_ms": 0.2,
+      "p95_ms": 0.24,
+      "min_ms": 0.17,
+      "max_ms": 0.26
+    },
+    "warm_detections_per_run": {
+      "min": 2,
+      "max": 2
+    }
+  },
+  "upload": {
+    "url": "http://127.0.0.1:8000/upload",
+    "video": "samples/sample.mp4",
+    "status_codes": [
+      302,
+      302,
+      302,
+      302,
+      302
+    ],
+    "end_to_end": {
+      "n": 5,
+      "mean_ms": 556.63,
+      "p50_ms": 548.11,
+      "p95_ms": 593.78,
+      "min_ms": 525.76,
+      "max_ms": 599.82
+    }
+  }
+}

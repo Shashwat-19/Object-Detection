@@ -1,0 +1,20 @@
+# Second video: 2-second 640 px clip made from samples/sample.mp4. First video: samples/sample.mp4 (5 s).
+# Compare: persist=True (old app setting) and persist=False (current app setting).
+persist=True
+  second video after first video (shared model):
+    frame 0: [1, 3, 5, 7, 8, 9, 24, 28]
+    frame 1: [1, 3, 5, 7, 8, 9, 24, 28]
+    frame 2: [1, 3, 5, 7, 8, 9, 24, 28]
+  second video alone (fresh model):
+    frame 0: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    frame 1: [1, 3, 4, 5, 6, 7, 8, 9]
+    frame 2: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+persist=False
+  second video after first video (shared model):
+    frame 0: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    frame 1: [1, 3, 4, 5, 6, 7, 8, 9]
+    frame 2: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  second video alone (fresh model):
+    frame 0: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    frame 1: [1, 3, 4, 5, 6, 7, 8, 9]
+    frame 2: [1, 2, 3, 4, 5, 6, 7, 8, 9]

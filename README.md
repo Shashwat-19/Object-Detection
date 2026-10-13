@@ -1,219 +1,96 @@
-# Object Detection and Tracking
+# TrackVision AI
 
-<div align="center">
+Multi-object tracking for uploaded videos, using YOLOv8 and ByteTrack in a Flask web app.
 
-<img src="asset/banner.png" alt="Object Detection and Tracking Banner" width="100%">
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](runtime.txt)
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626?style=for-the-badge&logo=jupyter&logoColor=white)](https://jupyter.org/)
-[![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-111F68?style=for-the-badge)](https://docs.ultralytics.com/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-[![Repo Size](https://img.shields.io/github/repo-size/Shashwat-19/Object-Detection?style=for-the-badge)](https://github.com/Shashwat-19/Object-Detection)
+![Example tracking output](trajectory_frame.jpg)
 
-**YOLOv8-based object detection, multi-object tracking, trajectory analysis, and movement visualization.**
-
-[Open in Colab](https://colab.research.google.com/github/Shashwat-19/Object-Detection/blob/main/Object_detection.ipynb)
-
-</div>
-
-## Overview
-
-This project demonstrates an end-to-end computer vision workflow for detecting and tracking objects in video or image-sequence data. It uses Ultralytics YOLOv8 with ByteTrack to assign stable object IDs across frames, generate annotated tracking output, analyze object trajectories, and visualize movement patterns with heatmaps and distribution plots.
-
-The workflow is implemented in [`Object_detection.ipynb`](Object_detection.ipynb), making it easy to run locally in Jupyter or on Google Colab with GPU acceleration.
+*Example frame from the tracking workflow. Upload a video to produce your own annotated MP4.*
 
 ## Features
 
-- Object detection with YOLOv8 models
-- Multi-object tracking with ByteTrack
-- Persistent tracking IDs across frames
-- Annotated output video generation
-- Object trajectory collection and plotting
-- Movement heatmap visualization
-- Horizontal and vertical movement distribution analysis
-- Basic quantitative tracking metrics, including unique object count and average trajectory length
-- GPU support through PyTorch and Ultralytics
+- Detects 80 COCO object classes with YOLOv8n and assigns persistent track IDs with ByteTrack.
+- Accepts MP4, AVI, MOV, MKV, and WebM uploads up to 100 MB, and checks each file's contents before it is processed.
+- Returns an annotated MP4 with a label, confidence score, and track ID on each object.
+- Shows measured values for each video: unique track IDs, detections, frames processed, and processing time.
+- Provides a JSON API with a health check, an OpenAPI 3.0 spec, and consistent JSON errors.
+- Runs on CPU, loads the model once at startup, and downloads the weights on first start.
 
-## Project Structure
-
-```text
-Object-Detection/
-├── Object_detection.ipynb      # Main notebook for detection, tracking, and analysis
-├── requirements.txt            # Python dependencies
-├── videos/
-│   └── test.mp4                # Sample input video
-├── output/
-│   └── tracked_output.mp4      # Sample tracked output video
-├── trajectory_frame.jpg        # Example trajectory frame
-├── yolov8m.pt                  # YOLOv8 medium model weights
-├── yolov8n.pt                  # YOLOv8 nano model weights
-├── LICENSE                     # MIT license
-└── README.md
-```
-
-## Tech Stack
-
-| Category | Tools |
-| --- | --- |
-| Detection and tracking | Ultralytics YOLOv8, ByteTrack |
-| Computer vision | OpenCV |
-| ML runtime | PyTorch, Torchvision |
-| Data analysis | NumPy, Pandas |
-| Visualization | Matplotlib |
-| Notebook runtime | Jupyter / Google Colab |
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10 or newer
-- Jupyter Notebook or JupyterLab
-- A CUDA-capable GPU is recommended for faster processing, but CPU execution is supported
-
-### Installation
-
-Clone the repository:
+## Quick start
 
 ```bash
-git clone https://github.com/Shashwat-19/Object-Detection.git
-cd Object-Detection
+git clone https://github.com/Shashwat-19/Object-Detection.git && cd Object-Detection
+python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+export PORT=8000 && gunicorn app:app --bind 127.0.0.1:$PORT --timeout 600 --workers 1 --worker-class gthread --threads 4
 ```
 
-Create and activate a virtual environment:
+The first start downloads the model weights, `yolov8n.pt` (about 6.5 MB), into the project folder. Wait for `Model loaded successfully` in the log, then open <http://127.0.0.1:8000>.
+
+On macOS, the pinned `+cpu` PyTorch builds are not available. Follow step 3 in the [quickstart](docs/quickstart.md) instead.
+
+## Example API call
+
+Upload the sample clip. The server redirects to the result page, and the `file` parameter names the output:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+curl -s -o /dev/null -D - -F video=@samples/sample.mp4 http://127.0.0.1:8000/upload
 ```
 
-Install dependencies:
+```http
+HTTP/1.1 302 FOUND
+Content-Type: text/html; charset=utf-8
+Location: /result/?file=track_sample_8a78d9517b_29dc62e9a8.mp4
+```
+
+Fetch the measured values for that video:
 
 ```bash
-pip install -r requirements.txt
+curl -s http://127.0.0.1:8000/static/outputs/track_sample_8a78d9517b_29dc62e9a8.json
 ```
 
-Launch Jupyter:
-
-```bash
-jupyter notebook Object_detection.ipynb
+```json
+{"frames_processed": 40, "total_detections": 133, "unique_track_ids": 15, "processing_seconds": 0.57}
 ```
 
-## Usage
+Errors return JSON when the request asks for it (`X-Requested-With: XMLHttpRequest` or `Accept: application/json`):
 
-### Run the Notebook Locally
-
-1. Open [`Object_detection.ipynb`](Object_detection.ipynb).
-2. Choose the model weights:
-
-   ```python
-   model = YOLO("yolov8m.pt")
-   ```
-
-   Use `yolov8n.pt` for faster inference or `yolov8m.pt` for stronger detection quality.
-
-3. Set the input source:
-
-   ```python
-   VIDEO_PATH = "videos/test.mp4"
-   ```
-
-   The notebook can also process an image folder, such as a MOT dataset frame directory.
-
-4. Run tracking:
-
-   ```python
-   results = model.track(
-       source=VIDEO_PATH,
-       tracker="bytetrack.yaml",
-       save=True,
-       show=False,
-       conf=0.3,
-       persist=True
-   )
-   ```
-
-5. Generate and inspect the tracked output video and trajectory visualizations.
-
-### Run on Google Colab
-
-The notebook includes Colab-oriented cells for mounting Google Drive and cloning this repository. To run on Colab:
-
-1. Open the notebook using the Colab badge above.
-2. Enable GPU from `Runtime > Change runtime type > GPU`.
-3. Mount Google Drive if your dataset is stored there.
-4. Update `VIDEO_PATH` to point to your video or frame directory.
-5. Run all notebook cells.
-
-## Outputs
-
-The workflow can produce:
-
-- Annotated tracking frames from YOLOv8 and ByteTrack
-- MP4 tracking output, saved as `tracked_output.mp4` or under `output/`
-- Object ID logs per frame
-- Trajectory history for each tracked object
-- Movement heatmap
-- Horizontal and vertical movement distribution plots
-- Tracking metrics such as unique objects tracked and average trajectory length
-
-## Example Results
-
-| Preview | Description |
-| --- | --- |
-| [`output/tracked_output.mp4`](output/tracked_output.mp4) | Sample tracked output video |
-| [`trajectory_frame.jpg`](trajectory_frame.jpg) | Example frame used for trajectory visualization |
-
-## Configuration
-
-Common values to tune in the notebook:
-
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `VIDEO_PATH` | Input video or image-frame directory | Colab Drive path / sample video |
-| `tracker` | Tracking algorithm configuration | `bytetrack.yaml` |
-| `conf` | Detection confidence threshold | `0.3` |
-| `persist` | Reuse object IDs across frames | `True` |
-| `device` | Inference device, such as `0` for GPU or `cpu` | `0` in Colab cells |
-| `max_trajectories_to_show` | Number of trajectories plotted | `10` |
-
-## Notes
-
-- The included `.pt` files are YOLOv8 model weights. If they are removed, Ultralytics can download supported weights automatically when requested.
-- For local CPU-only runs, replace `device=0` with `device="cpu"` or remove the `device` argument.
-- The Colab notebook references `/content/drive/MyDrive/MOT17-02-FRCNN/img1` as an example dataset path. Update it to match your own dataset location.
-- Large video outputs and model weights can make the repository heavy. Consider using Git LFS for future model and media assets.
+```json
+{"error":"The file is not a supported video. Its contents do not match the file extension."}
+```
 
 ## Documentation
 
-Comprehensive documentation for this project is available on [Hashnode](https://hashnode.com/@Shashwat56).
+- [Quickstart](docs/quickstart.md): from a fresh clone to a tracked video.
+- [API reference](docs/api-reference.md): every route, with examples and status codes.
+- [Technical report](docs/technical-report.md): architecture, model settings, measured performance, and known limitations.
+- [OpenAPI spec](docs/openapi.yaml): the machine-readable contract.
 
-> At present, this README serves as the primary source of documentation.
+## Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Detection and tracking | Ultralytics YOLOv8 (8.4.49), ByteTrack |
+| Web app | Flask 3.1, Gunicorn 23 |
+| Computer vision | OpenCV, NumPy |
+| Runtime | PyTorch 2.11 (CPU), Python 3.11 |
+| Front end | Bootstrap 5.3, Bootstrap Icons, vanilla JavaScript |
+| Tests | pytest |
+
+## Testing
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The tests use a fake model, so they do not download weights or run inference.
 
 ## License
 
-This project is distributed under the MIT License.  
-For detailed licensing information, please refer to the [LICENSE](./LICENSE) file included in this repository.
+Released under the [MIT License](LICENSE).
 
-## Contact  
-## Shashwat
+## Author
 
-**Machine Learning Engineer | Scalable AI Systems**
-
-🔹 **ML systems:** (CV, NLP) + data pipelines<br>
-🔹 **End-to-end:** training → deployment<br>
-🔹 **Backend & Cloud:** Python, Flask, Node.js, Docker, AWS<br>
-🔹 **Projects:** Traffic AI, Video Summarizer, AI Assistants<br>
-
----
-
-## Open Source | Tech Innovation  
-Building robust applications and leveraging cloud technologies for high-performance solutions.
-
----
-
-### Find me here:  
-[<img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" />](https://github.com/Shashwat-19)  [<img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" />](https://www.linkedin.com/in/shashwatk1956/)  [<img src="https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white" />](mailto:shashwat1956@gmail.com)  [<img src="https://img.shields.io/badge/Hashnode-2962FF?style=for-the-badge&logo=hashnode&logoColor=white" />](https://hashnode.com/@Shashwat56)
-[<img src="https://img.shields.io/badge/HackerRank-15%2B-2EC866?style=for-the-badge&logo=HackerRank&logoColor=white" />](https://www.hackerrank.com/profile/shashwat1956)
-
-> Feel free to connect for tech collaborations, open-source contributions, or brainstorming innovative solutions!
+**Shashwat** · [github.com/Shashwat-19](https://github.com/Shashwat-19)

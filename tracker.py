@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import gc
+import json
 import logging
 import shutil
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -21,6 +23,10 @@ class TrackingError(RuntimeError):
     """Raised when video tracking fails."""
 
 
+class UnreadableVideoError(TrackingError):
+    """Raised when the input file is not a video that the model can open."""
+
+
 class TrackingService:
     def __init__(
         self,
@@ -32,20 +38,24 @@ class TrackingService:
         self.confidence = confidence
         self.device = "cpu"
         self._lock = threading.Lock()
-        self._model = None  # lazy-loaded to avoid OOM at startup
+        self._model = None
 
-        # Resolve model path relative to project root
+        # Resolve model path relative to project root. If the weights are missing,
+        # Ultralytics downloads the named asset to this path on first load.
         self.model_path = BASE_DIR / model_name
         if not self.model_path.exists():
             fallback = BASE_DIR / "yolov8n.pt"
             if fallback.exists():
                 self.model_path = fallback
-            else:
-                raise FileNotFoundError(
-                    f"No YOLO weights found at {self.model_path} or {fallback}"
-                )
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load once per process, at startup. If the weights are missing,
+        # Ultralytics downloads them to model_path first.
+        logger.info("Loading YOLO model: %s", self.model_path)
+        self._model = YOLO(str(self.model_path))
+        logger.info("Model loaded successfully")
+
         logger.info(
             "TrackingService initialized (model=%s, device=%s, base=%s)",
             self.model_path, self.device, BASE_DIR,
@@ -53,11 +63,7 @@ class TrackingService:
 
     @property
     def model(self) -> YOLO:
-        """Lazy-load the YOLO model on first use to reduce startup memory."""
-        if self._model is None:
-            logger.info("Loading YOLO model: %s", self.model_path)
-            self._model = YOLO(str(self.model_path))
-            logger.info("Model loaded successfully")
+        """The YOLO model loaded in __init__."""
         return self._model
 
     def process_video(self, video_path: str | Path) -> str:
@@ -68,6 +74,7 @@ class TrackingService:
         file_size_mb = source.stat().st_size / (1024 * 1024)
         logger.info("Processing video: %s (%.1f MB)", source.name, file_size_mb)
 
+        started = time.perf_counter()
         run_name = f"track_{source.stem}_{uuid.uuid4().hex[:10]}"
         run_dir = self.output_dir / run_name
 
@@ -80,7 +87,9 @@ class TrackingService:
                     save=True,
                     show=False,
                     conf=self.confidence,
-                    persist=True,
+                    # Each upload is an independent video. persist=True would keep
+                    # tracker state, and so track IDs, from the previous upload.
+                    persist=False,
                     device=self.device,
                     project=str(self.output_dir),
                     name=run_name,
@@ -90,16 +99,27 @@ class TrackingService:
                     vid_stride=3,
                 )
                 frame_count = 0
-                for _ in results:
+                total_detections = 0
+                track_ids: set[int] = set()
+                for result in results:
                     frame_count += 1
+                    total_detections += len(result.boxes)
+                    if result.boxes.id is not None:
+                        track_ids.update(result.boxes.id.int().tolist())
                     if frame_count % 100 == 0:
                         logger.info("Processed %d frames...", frame_count)
                         gc.collect()
 
                 logger.info("Tracking complete: %d frames processed", frame_count)
+        except FileNotFoundError as exc:
+            # Ultralytics raises FileNotFoundError when it cannot open the input.
+            logger.error("Input video could not be read: %s", exc)
+            raise UnreadableVideoError("The video could not be read.") from exc
         except Exception as exc:
+            # Keep internal details, such as server paths, out of the message.
+            # Callers log the full traceback.
             logger.error("Inference failed: %s", exc, exc_info=True)
-            raise TrackingError(f"Inference failed: {exc}") from exc
+            raise TrackingError("Inference failed.") from exc
         finally:
             # Clean up the uploaded source video to save disk space
             try:
@@ -124,6 +144,15 @@ class TrackingService:
 
         if run_dir.exists():
             shutil.rmtree(run_dir, ignore_errors=True)
+
+        # Values measured while tracking. The result page reads this file.
+        stats = {
+            "frames_processed": frame_count,
+            "total_detections": total_detections,
+            "unique_track_ids": len(track_ids),
+            "processing_seconds": round(time.perf_counter() - started, 2),
+        }
+        final_path.with_suffix(".json").write_text(json.dumps(stats))
 
         logger.info("Output saved: %s", final_path.name)
         return str(final_path)

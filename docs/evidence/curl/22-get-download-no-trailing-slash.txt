@@ -1,0 +1,21 @@
+$ curl -s -D h.txt -o b.txt -w '%{http_code} %{time_total}s' 'http://127.0.0.1:8000/download?filename=missing.mp4'
+
+# status: 308 0.000901s
+
+# response headers
+HTTP/1.1 308 PERMANENT REDIRECT
+Server: gunicorn
+Date: Tue, 13 Oct 2026 02:30:46 GMT
+Connection: keep-alive
+Content-Type: text/html; charset=utf-8
+Content-Length: 291
+Location: http://127.0.0.1:8000/download/?filename=missing.mp4
+
+
+# response body
+<!doctype html>
+<html lang=en>
+<title>Redirecting...</title>
+<h1>Redirecting...</h1>
+<p>You should be redirected automatically to the target URL: <a href="http://127.0.0.1:8000/download/?filename=missing.mp4">http://127.0.0.1:8000/download/?filename=missing.mp4</a>. If not, click the link.
+

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import uuid
 from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request, send_from_directory, url_for
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from tracker import TrackingError, process_video
+from tracker import TrackingError, UnreadableVideoError, process_video
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -31,6 +33,11 @@ def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
 
+def env_flag(name: str) -> bool:
+    """True when the environment variable is set to 1, true, yes, or on (any case)."""
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -44,7 +51,10 @@ def health():
 
 @app.get("/debug")
 def debug():
-    """Diagnostic endpoint — shows environment info for troubleshooting."""
+    """Diagnostic endpoint, off unless ENABLE_DEBUG_ENDPOINT is set. Shows environment info."""
+    if not env_flag("ENABLE_DEBUG_ENDPOINT"):
+        abort(404)
+
     import shutil
     import subprocess
     import sys
@@ -118,6 +128,17 @@ def debug():
     return info, 200
 
 
+def _has_video_signature(header: bytes, suffix: str) -> bool:
+    """Check the first bytes of a file against the container its extension names."""
+    if suffix in {".mp4", ".mov"}:
+        return header[4:8] == b"ftyp"
+    if suffix == ".avi":
+        return header[0:4] == b"RIFF" and header[8:12] == b"AVI "
+    if suffix in {".mkv", ".webm"}:
+        return header[0:4] == b"\x1a\x45\xdf\xa3"  # EBML header
+    return False
+
+
 @app.post("/upload")
 def upload():
     file = request.files.get("video")
@@ -127,8 +148,25 @@ def upload():
     if not allowed_file(file.filename):
         return _error_response("Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.", 400)
 
-    original_name = secure_filename(file.filename)
-    upload_name = f"{Path(original_name).stem}_{uuid.uuid4().hex[:10]}{Path(original_name).suffix.lower()}"
+    suffix = Path(file.filename).suffix.lower()
+
+    # The declared Content-Type is checked only to reject obvious mismatches
+    # such as text/html. The file contents are the real test.
+    declared_type = (file.mimetype or "").lower()
+    if declared_type and not (declared_type.startswith("video/") or declared_type == "application/octet-stream"):
+        return _error_response("Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.", 400)
+
+    header = file.stream.read(16)
+    file.stream.seek(0)
+    if not _has_video_signature(header, suffix):
+        return _error_response(
+            "The file is not a supported video. Its contents do not match the file extension.", 400
+        )
+
+    # Build the stored name from a sanitized stem, so a name that sanitizes to
+    # nothing (for example "%%%.mp4") still ends with the video extension.
+    stem = secure_filename(Path(file.filename).stem) or "video"
+    upload_name = f"{stem}_{uuid.uuid4().hex[:10]}{suffix}"
     upload_path = UPLOAD_DIR / upload_name
 
     try:
@@ -139,21 +177,36 @@ def upload():
 
         output_path = Path(process_video(upload_path))
         logger.info("Processing complete: %s", output_path.name)
-    except TrackingError as exc:
-        logger.error("TrackingError: %s", exc)
-        return _error_response(str(exc), 500)
-    except Exception as exc:
-        import traceback
-        tb = traceback.format_exc()
-        logger.error("Unexpected error: %s\n%s", exc, tb)
-        return _error_response(f"Processing failed: {exc}", 500)
+    except UnreadableVideoError:
+        return _error_response("The video could not be read. Upload a different file.", 400)
+    except TrackingError:
+        ref = _new_reference()
+        logger.exception("Tracking failed (reference %s)", ref)
+        return _error_response(f"Processing failed. Reference: {ref}", 500)
+    except Exception:
+        ref = _new_reference()
+        logger.exception("Unexpected error during upload (reference %s)", ref)
+        return _error_response(f"Processing failed. Reference: {ref}", 500)
+    finally:
+        # process_video deletes its input. This also covers failures before it runs.
+        upload_path.unlink(missing_ok=True)
 
     return redirect(url_for("result", file=output_path.name))
 
 
+def _wants_json() -> bool:
+    """True when the client asked for JSON: XHR requests or Accept: application/json."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "")
+
+
+def _new_reference() -> str:
+    """Short ID that ties a client-facing error to its log entry."""
+    return uuid.uuid4().hex[:8]
+
+
 def _error_response(message: str, status_code: int):
-    """Return error as JSON for XHR requests, or HTML for regular requests."""
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+    """Return error as JSON for API clients, or the upload page with an alert for browsers."""
+    if _wants_json():
         return {"error": message}, status_code
     return render_template("index.html", error=message), status_code
 
@@ -173,7 +226,16 @@ def result():
         video_url=url_for("static", filename=f"outputs/{output_path.name}"),
         download_url=url_for("download", filename=output_path.name),
         filename=output_path.name,
+        stats=_load_stats(output_path),
     )
+
+
+def _load_stats(output_path: Path) -> dict | None:
+    """Read the measured stats written next to an output video, or None if they are missing."""
+    try:
+        return json.loads(output_path.with_suffix(".json").read_text())
+    except (OSError, ValueError):
+        return None
 
 
 @app.get("/download/")
@@ -190,24 +252,36 @@ def download():
     return send_from_directory(OUTPUT_DIR, safe_name, as_attachment=True)
 
 
-@app.errorhandler(413)
-def request_entity_too_large(_error):
-    return _error_response("File is too large. Maximum upload size is 100 MB.", 413)
+@app.errorhandler(HTTPException)
+def handle_http_error(error: HTTPException):
+    """Return {"error": ...} to API clients. Browsers keep the default page or the upload alert."""
+    if error.code == 413:
+        message = "File is too large. Maximum upload size is 100 MB."
+    else:
+        message = error.description
+
+    if _wants_json():
+        return {"error": message}, error.code
+    if request.endpoint == "upload" and error.code in (400, 413):
+        return render_template("index.html", error=message), error.code
+    return error
 
 
-@app.errorhandler(500)
-def internal_server_error(error):
-    logger.error("500 error: %s", error)
-    return _error_response(f"Internal server error: {error}", 500)
-
-
-@app.errorhandler(502)
-def bad_gateway(error):
-    logger.error("502 error: %s", error)
-    return _error_response("Server overloaded — try a shorter video or try again later.", 502)
+@app.errorhandler(Exception)
+def handle_unexpected_error(error: Exception):
+    if isinstance(error, HTTPException):
+        return handle_http_error(error)
+    ref = _new_reference()
+    logger.exception("Unhandled error (reference %s)", ref)
+    message = f"Internal server error. Reference: {ref}"
+    if _wants_json():
+        return {"error": message}, 500
+    return message, 500, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Local development only. The Werkzeug debugger allows code execution, so it stays off
+    # unless FLASK_DEBUG is set. Production uses gunicorn, which ignores this setting.
+    app.run(host="0.0.0.0", port=port, debug=env_flag("FLASK_DEBUG"))
 
