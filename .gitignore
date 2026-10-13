@@ -35,14 +35,20 @@ datasets/
 # Runtime and generated output
 runs/
 output/
+videos/
 static/uploads/*
+!static/uploads/.gitkeep
 static/outputs/*
+!static/outputs/.gitkeep
 *.mp4
 *.avi
 *.mov
 *.mkv
 *.webm
 *.log
+
+# The one committed sample clip (see samples/README.md)
+!samples/sample.mp4
 
 # Documentation site build output
 site/
