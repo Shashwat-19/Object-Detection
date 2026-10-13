@@ -34,16 +34,13 @@ class TrackingService:
         self._lock = threading.Lock()
         self._model = None  # lazy-loaded to avoid OOM at startup
 
-        # Resolve model path relative to project root
+        # Resolve model path relative to project root. If the weights are missing,
+        # Ultralytics downloads the named asset to this path on first load.
         self.model_path = BASE_DIR / model_name
         if not self.model_path.exists():
             fallback = BASE_DIR / "yolov8n.pt"
             if fallback.exists():
                 self.model_path = fallback
-            else:
-                raise FileNotFoundError(
-                    f"No YOLO weights found at {self.model_path} or {fallback}"
-                )
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(
