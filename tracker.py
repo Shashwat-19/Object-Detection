@@ -80,7 +80,9 @@ class TrackingService:
                     save=True,
                     show=False,
                     conf=self.confidence,
-                    persist=True,
+                    # Each upload is an independent video. persist=True would keep
+                    # tracker state, and so track IDs, from the previous upload.
+                    persist=False,
                     device=self.device,
                     project=str(self.output_dir),
                     name=run_name,
