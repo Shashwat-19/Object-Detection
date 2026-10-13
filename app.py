@@ -118,6 +118,17 @@ def debug():
     return info, 200
 
 
+def _has_video_signature(header: bytes, suffix: str) -> bool:
+    """Check the first bytes of a file against the container its extension names."""
+    if suffix in {".mp4", ".mov"}:
+        return header[4:8] == b"ftyp"
+    if suffix == ".avi":
+        return header[0:4] == b"RIFF" and header[8:12] == b"AVI "
+    if suffix in {".mkv", ".webm"}:
+        return header[0:4] == b"\x1a\x45\xdf\xa3"  # EBML header
+    return False
+
+
 @app.post("/upload")
 def upload():
     file = request.files.get("video")
@@ -127,8 +138,25 @@ def upload():
     if not allowed_file(file.filename):
         return _error_response("Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.", 400)
 
-    original_name = secure_filename(file.filename)
-    upload_name = f"{Path(original_name).stem}_{uuid.uuid4().hex[:10]}{Path(original_name).suffix.lower()}"
+    suffix = Path(file.filename).suffix.lower()
+
+    # The declared Content-Type is checked only to reject obvious mismatches
+    # such as text/html. The file contents are the real test.
+    declared_type = (file.mimetype or "").lower()
+    if declared_type and not (declared_type.startswith("video/") or declared_type == "application/octet-stream"):
+        return _error_response("Unsupported format. Upload MP4, AVI, MOV, MKV, or WebM.", 400)
+
+    header = file.stream.read(16)
+    file.stream.seek(0)
+    if not _has_video_signature(header, suffix):
+        return _error_response(
+            "The file is not a supported video. Its contents do not match the file extension.", 400
+        )
+
+    # Build the stored name from a sanitized stem, so a name that sanitizes to
+    # nothing (for example "%%%.mp4") still ends with the video extension.
+    stem = secure_filename(Path(file.filename).stem) or "video"
+    upload_name = f"{stem}_{uuid.uuid4().hex[:10]}{suffix}"
     upload_path = UPLOAD_DIR / upload_name
 
     try:
@@ -147,6 +175,9 @@ def upload():
         tb = traceback.format_exc()
         logger.error("Unexpected error: %s\n%s", exc, tb)
         return _error_response(f"Processing failed: {exc}", 500)
+    finally:
+        # process_video deletes its input. This also covers failures before it runs.
+        upload_path.unlink(missing_ok=True)
 
     return redirect(url_for("result", file=output_path.name))
 
