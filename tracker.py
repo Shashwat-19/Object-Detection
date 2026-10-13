@@ -21,6 +21,10 @@ class TrackingError(RuntimeError):
     """Raised when video tracking fails."""
 
 
+class UnreadableVideoError(TrackingError):
+    """Raised when the input file is not a video that the model can open."""
+
+
 class TrackingService:
     def __init__(
         self,
@@ -99,9 +103,15 @@ class TrackingService:
                         gc.collect()
 
                 logger.info("Tracking complete: %d frames processed", frame_count)
+        except FileNotFoundError as exc:
+            # Ultralytics raises FileNotFoundError when it cannot open the input.
+            logger.error("Input video could not be read: %s", exc)
+            raise UnreadableVideoError("The video could not be read.") from exc
         except Exception as exc:
+            # Keep internal details, such as server paths, out of the message.
+            # Callers log the full traceback.
             logger.error("Inference failed: %s", exc, exc_info=True)
-            raise TrackingError(f"Inference failed: {exc}") from exc
+            raise TrackingError("Inference failed.") from exc
         finally:
             # Clean up the uploaded source video to save disk space
             try:

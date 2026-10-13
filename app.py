@@ -6,9 +6,10 @@ import uuid
 from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request, send_from_directory, url_for
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from tracker import TrackingError, process_video
+from tracker import TrackingError, UnreadableVideoError, process_video
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -167,14 +168,16 @@ def upload():
 
         output_path = Path(process_video(upload_path))
         logger.info("Processing complete: %s", output_path.name)
-    except TrackingError as exc:
-        logger.error("TrackingError: %s", exc)
-        return _error_response(str(exc), 500)
-    except Exception as exc:
-        import traceback
-        tb = traceback.format_exc()
-        logger.error("Unexpected error: %s\n%s", exc, tb)
-        return _error_response(f"Processing failed: {exc}", 500)
+    except UnreadableVideoError:
+        return _error_response("The video could not be read. Upload a different file.", 400)
+    except TrackingError:
+        ref = _new_reference()
+        logger.exception("Tracking failed (reference %s)", ref)
+        return _error_response(f"Processing failed. Reference: {ref}", 500)
+    except Exception:
+        ref = _new_reference()
+        logger.exception("Unexpected error during upload (reference %s)", ref)
+        return _error_response(f"Processing failed. Reference: {ref}", 500)
     finally:
         # process_video deletes its input. This also covers failures before it runs.
         upload_path.unlink(missing_ok=True)
@@ -182,9 +185,19 @@ def upload():
     return redirect(url_for("result", file=output_path.name))
 
 
+def _wants_json() -> bool:
+    """True when the client asked for JSON: XHR requests or Accept: application/json."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "")
+
+
+def _new_reference() -> str:
+    """Short ID that ties a client-facing error to its log entry."""
+    return uuid.uuid4().hex[:8]
+
+
 def _error_response(message: str, status_code: int):
-    """Return error as JSON for XHR requests, or HTML for regular requests."""
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+    """Return error as JSON for API clients, or the upload page with an alert for browsers."""
+    if _wants_json():
         return {"error": message}, status_code
     return render_template("index.html", error=message), status_code
 
@@ -221,21 +234,31 @@ def download():
     return send_from_directory(OUTPUT_DIR, safe_name, as_attachment=True)
 
 
-@app.errorhandler(413)
-def request_entity_too_large(_error):
-    return _error_response("File is too large. Maximum upload size is 100 MB.", 413)
+@app.errorhandler(HTTPException)
+def handle_http_error(error: HTTPException):
+    """Return {"error": ...} to API clients. Browsers keep the default page or the upload alert."""
+    if error.code == 413:
+        message = "File is too large. Maximum upload size is 100 MB."
+    else:
+        message = error.description
+
+    if _wants_json():
+        return {"error": message}, error.code
+    if request.endpoint == "upload" and error.code in (400, 413):
+        return render_template("index.html", error=message), error.code
+    return error
 
 
-@app.errorhandler(500)
-def internal_server_error(error):
-    logger.error("500 error: %s", error)
-    return _error_response(f"Internal server error: {error}", 500)
-
-
-@app.errorhandler(502)
-def bad_gateway(error):
-    logger.error("502 error: %s", error)
-    return _error_response("Server overloaded — try a shorter video or try again later.", 502)
+@app.errorhandler(Exception)
+def handle_unexpected_error(error: Exception):
+    if isinstance(error, HTTPException):
+        return handle_http_error(error)
+    ref = _new_reference()
+    logger.exception("Unhandled error (reference %s)", ref)
+    message = f"Internal server error. Reference: {ref}"
+    if _wants_json():
+        return {"error": message}, 500
+    return message, 500, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 if __name__ == "__main__":
