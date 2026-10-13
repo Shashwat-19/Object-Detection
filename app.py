@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import uuid
@@ -225,7 +226,16 @@ def result():
         video_url=url_for("static", filename=f"outputs/{output_path.name}"),
         download_url=url_for("download", filename=output_path.name),
         filename=output_path.name,
+        stats=_load_stats(output_path),
     )
+
+
+def _load_stats(output_path: Path) -> dict | None:
+    """Read the measured stats written next to an output video, or None if they are missing."""
+    try:
+        return json.loads(output_path.with_suffix(".json").read_text())
+    except (OSError, ValueError):
+        return None
 
 
 @app.get("/download/")

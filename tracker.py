@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import gc
+import json
 import logging
 import shutil
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -72,6 +74,7 @@ class TrackingService:
         file_size_mb = source.stat().st_size / (1024 * 1024)
         logger.info("Processing video: %s (%.1f MB)", source.name, file_size_mb)
 
+        started = time.perf_counter()
         run_name = f"track_{source.stem}_{uuid.uuid4().hex[:10]}"
         run_dir = self.output_dir / run_name
 
@@ -96,8 +99,13 @@ class TrackingService:
                     vid_stride=3,
                 )
                 frame_count = 0
-                for _ in results:
+                total_detections = 0
+                track_ids: set[int] = set()
+                for result in results:
                     frame_count += 1
+                    total_detections += len(result.boxes)
+                    if result.boxes.id is not None:
+                        track_ids.update(result.boxes.id.int().tolist())
                     if frame_count % 100 == 0:
                         logger.info("Processed %d frames...", frame_count)
                         gc.collect()
@@ -136,6 +144,15 @@ class TrackingService:
 
         if run_dir.exists():
             shutil.rmtree(run_dir, ignore_errors=True)
+
+        # Values measured while tracking. The result page reads this file.
+        stats = {
+            "frames_processed": frame_count,
+            "total_detections": total_detections,
+            "unique_track_ids": len(track_ids),
+            "processing_seconds": round(time.perf_counter() - started, 2),
+        }
+        final_path.with_suffix(".json").write_text(json.dumps(stats))
 
         logger.info("Output saved: %s", final_path.name)
         return str(final_path)
