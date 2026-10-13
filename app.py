@@ -32,6 +32,11 @@ def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
 
+def env_flag(name: str) -> bool:
+    """True when the environment variable is set to 1, true, yes, or on (any case)."""
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -45,7 +50,10 @@ def health():
 
 @app.get("/debug")
 def debug():
-    """Diagnostic endpoint — shows environment info for troubleshooting."""
+    """Diagnostic endpoint, off unless ENABLE_DEBUG_ENDPOINT is set. Shows environment info."""
+    if not env_flag("ENABLE_DEBUG_ENDPOINT"):
+        abort(404)
+
     import shutil
     import subprocess
     import sys
