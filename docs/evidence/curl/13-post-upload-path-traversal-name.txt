@@ -1,0 +1,21 @@
+$ curl -s -D h.txt -o b.txt -w '%{http_code} %{time_total}s' -F 'video=@short.mp4;filename=../../evil.mp4' http://127.0.0.1:8000/upload
+
+# status: 302 0.263753s
+
+# response headers
+HTTP/1.1 302 FOUND
+Server: gunicorn
+Date: Tue, 13 Oct 2026 02:30:45 GMT
+Connection: keep-alive
+Content-Type: text/html; charset=utf-8
+Content-Length: 287
+Location: /result/?file=track_evil_400751a640_3e6bf4bbab.mp4
+
+
+# response body
+<!doctype html>
+<html lang=en>
+<title>Redirecting...</title>
+<h1>Redirecting...</h1>
+<p>You should be redirected automatically to the target URL: <a href="/result/?file=track_evil_400751a640_3e6bf4bbab.mp4">/result/?file=track_evil_400751a640_3e6bf4bbab.mp4</a>. If not, click the link.
+

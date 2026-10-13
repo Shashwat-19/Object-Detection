@@ -1,29 +1,29 @@
 
-== 1. Clone and pull the sample video (02:32:06)
--rw-r--r--@ 1 shashwat.  wheel  12150447 13 Oct 02:32 videos/test.mp4
-elapsed: 30s
+== 1. Clone the repository (08:04:54)
+-rw-r--r--@ 1 shashwat.  wheel  191783 13 Oct 08:04 samples/sample.mp4
+elapsed: 0s
 
-== 2. Create and activate a virtual environment (02:32:36)
+== 2. Create and activate a virtual environment (08:04:54)
 Python 3.11.15
 
-== 3. Install the dependencies (macOS form) (02:32:37)
+== 3. Install the dependencies (macOS form) (08:04:56)
 
 [notice] A new release of pip is available: 26.1 -> 26.2.1
 [notice] To update, run: pip install --upgrade pip
-pip exit=0  install time: 37s
+pip exit=0  install time: 36s
 1.1G	.venv
 
-== 4. Start the server (02:33:14)
+== 4. Start the server (08:05:32)
 HTTP/1.1 200 OK
 
-== 5. Send a detection request (02:33:30)
-/result/?file=track_test_671c3d5c6a_83af1acb7b.mp4
-upload time: 8s
+== 5. Send a detection request (08:05:49)
+/result/?file=track_sample_c1d0895a36_12030a2394.mp4
+upload time: 6s
 
-== 6. Download the tracked video (02:33:38)
-HTTP 200, 4384172 bytes
-width=3840
-height=2160
-duration=1.913043
+== 6. Download the tracked video (08:05:55)
+HTTP 200, 175099 bytes
+width=640
+height=360
+duration=1.739130
 
-total elapsed: 92s
+total elapsed: 61s

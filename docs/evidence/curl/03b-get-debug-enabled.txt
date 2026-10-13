@@ -1,0 +1,17 @@
+$ ENABLE_DEBUG_ENDPOINT=1 gunicorn app:app --bind 127.0.0.1:8001 ...  # then:
+$ curl -s -D h.txt -o b.txt -w '%{http_code}' http://127.0.0.1:8001/debug
+
+# status: 200 0.077372s
+
+# response headers
+HTTP/1.1 200 OK
+Server: gunicorn
+Date: Tue, 13 Oct 2026 02:36:47 GMT
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 685
+
+
+# response body
+{"base_dir":"/path/to/Object-Detection","cuda_available":false,"cwd":"/path/to/Object-Detection","disk":{"free_gb":19.4,"total_gb":228.3},"ffmpeg_binary":"ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers","memory":{"available_mb":1123,"total_mb":8192,"used_percent":86.3},"model_yolov8m.pt":{"exists":false,"size_mb":null},"model_yolov8n.pt":{"exists":true,"size_mb":6.2},"opencv_ffmpeg":false,"opencv_version":"5.0.0","output_dir_exists":true,"python_version":"3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 21.0.0 (clang-2100.0.123.102)]","torch_version":"2.11.0","ultralytics_version":"8.4.49","upload_dir_exists":true}
+

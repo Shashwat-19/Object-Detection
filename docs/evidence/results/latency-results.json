@@ -23,32 +23,32 @@
       3840,
       3
     ],
-    "model_load_ms": 33.44,
-    "cold_call_ms": 46.77,
+    "model_load_ms": 35.15,
+    "cold_call_ms": 31.23,
     "cold_call_detections": 2,
     "warm_wall_clock": {
       "n": 50,
-      "mean_ms": 7.32,
-      "p50_ms": 7.27,
-      "p95_ms": 7.76,
-      "min_ms": 6.94,
-      "max_ms": 8.17
+      "mean_ms": 7.46,
+      "p50_ms": 7.35,
+      "p95_ms": 8.17,
+      "min_ms": 6.99,
+      "max_ms": 8.65
     },
     "warm_stage_preprocess": {
       "n": 50,
-      "mean_ms": 0.39,
-      "p50_ms": 0.39,
-      "p95_ms": 0.44,
+      "mean_ms": 0.41,
+      "p50_ms": 0.4,
+      "p95_ms": 0.45,
       "min_ms": 0.36,
-      "max_ms": 0.5
+      "max_ms": 0.74
     },
     "warm_stage_inference": {
       "n": 50,
-      "mean_ms": 6.66,
-      "p50_ms": 6.59,
-      "p95_ms": 7.07,
-      "min_ms": 6.17,
-      "max_ms": 7.4
+      "mean_ms": 6.77,
+      "p50_ms": 6.7,
+      "p95_ms": 7.31,
+      "min_ms": 6.25,
+      "max_ms": 7.89
     },
     "warm_stage_postprocess": {
       "n": 50,
@@ -56,7 +56,7 @@
       "p50_ms": 0.2,
       "p95_ms": 0.24,
       "min_ms": 0.17,
-      "max_ms": 0.25
+      "max_ms": 0.26
     },
     "warm_detections_per_run": {
       "min": 2,
@@ -64,8 +64,8 @@
     }
   },
   "upload": {
-    "url": "http://127.0.0.1:5055/upload",
-    "video": "videos/test.mp4",
+    "url": "http://127.0.0.1:8000/upload",
+    "video": "samples/sample.mp4",
     "status_codes": [
       302,
       302,
@@ -75,11 +75,11 @@
     ],
     "end_to_end": {
       "n": 5,
-      "mean_ms": 5008.24,
-      "p50_ms": 5043.16,
-      "p95_ms": 5071.13,
-      "min_ms": 4852.2,
-      "max_ms": 5074.69
+      "mean_ms": 556.63,
+      "p50_ms": 548.11,
+      "p95_ms": 593.78,
+      "min_ms": 525.76,
+      "max_ms": 599.82
     }
   }
 }
